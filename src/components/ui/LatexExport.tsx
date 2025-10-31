@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { FiCopy } from "react-icons/fi";
 import { toast } from "sonner";
-import { generateLatex } from "@/utils/latexgenerator";
+import { generateLatex } from "@/utils/latexGenerator";
 import { ResumeData } from "@/types/resume";
 
 interface LatexExportProps {

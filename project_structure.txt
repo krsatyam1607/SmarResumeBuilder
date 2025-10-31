@@ -8,8 +8,6 @@ zero-friction-resume/
     package-lock.json
     package.json
     postcss.config.js
-    project.txt
-    project_structure.txt
     tailwind.config.ts
     tsconfig.app.json
     tsconfig.json
@@ -34,6 +32,7 @@ zero-friction-resume/
                     MinimalTemplate.tsx
                     ModernTemplate.tsx
             ui/
+                LatexExport.tsx
                 accordion.tsx
                 alert-dialog.tsx
                 alert.tsx
@@ -94,4 +93,5 @@ zero-friction-resume/
         types/
             resume.ts
         utils/
+            latexGenerator.ts
             pdfGenerator.ts

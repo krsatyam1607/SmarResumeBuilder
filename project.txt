@@ -8,7 +8,6 @@ zero-friction-resume/
     package-lock.json
     package.json
     postcss.config.js
-    project.txt
     project_structure.txt
     tailwind.config.ts
     tsconfig.app.json
@@ -34,6 +33,7 @@ zero-friction-resume/
                     MinimalTemplate.tsx
                     ModernTemplate.tsx
             ui/
+                LatexExport.tsx
                 accordion.tsx
                 alert-dialog.tsx
                 alert.tsx
@@ -94,6 +94,7 @@ zero-friction-resume/
         types/
             resume.ts
         utils/
+            latexGenerator.ts
             pdfGenerator.ts
 ---
 File: eslint.config.js
@@ -499,6 +500,23 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+}
+
+#resume-preview {
+  margin: 0 auto;
+  transform-origin: top center;
+}
+
+svg {
+  vertical-align: middle;
+  position: relative;
+  top: 1px;
+}
+
+/* Fix icon alignment in PDF snapshot */
+#resume-preview svg {
+  vertical-align: middle !important;
+  transform: translateY(1px) !important;
 }
 
 ```
@@ -1088,7 +1106,10 @@ interface ClassicTemplateProps {
 
 export const ClassicTemplate = ({ data }: ClassicTemplateProps) => {
   return (
-    <div className="bg-white text-gray-900 min-h-[297mm] w-[210mm]" id="resume-preview">
+<div
+  id="resume-preview"
+  className="bg-white text-gray-900 mx-auto p-8 min-h-[297mm] w-[210mm] shadow-md flex flex-col justify-start"
+>
       {/* Header with blue background */}
       <div className="bg-blue-900 text-white p-8">
         <div className="flex items-center gap-6">
@@ -1252,7 +1273,10 @@ interface MinimalTemplateProps {
 
 export const MinimalTemplate = ({ data }: MinimalTemplateProps) => {
   return (
-    <div className="bg-white text-gray-900 p-8 min-h-[297mm] w-[210mm]" id="resume-preview">
+<div
+  id="resume-preview"
+  className="bg-white text-gray-900 mx-auto p-8 min-h-[297mm] w-[210mm] shadow-md flex flex-col justify-start"
+>
       {/* Header */}
       <div className="border-b-2 border-gray-900 pb-4 mb-6">
         <h1 className="text-4xl font-bold mb-2">{data.personal.name || 'Your Name'}</h1>
@@ -1398,7 +1422,10 @@ interface ModernTemplateProps {
 
 export const ModernTemplate = ({ data }: ModernTemplateProps) => {
   return (
-    <div className="bg-white text-gray-900 min-h-[297mm] w-[210mm] flex" id="resume-preview">
+<div
+  id="resume-preview"
+  className="bg-white text-gray-900 mx-auto p-8 min-h-[297mm] w-[210mm] shadow-md flex flex-col justify-start"
+>
       {/* Left Sidebar */}
       <div className="w-1/3 bg-gradient-to-b from-indigo-600 to-purple-700 text-white p-6">
         {data.personal.photo && (
@@ -3708,6 +3735,68 @@ const Label = React.forwardRef<
 Label.displayName = LabelPrimitive.Root.displayName;
 
 export { Label };
+
+```
+
+---
+File: src\components\ui\LatexExport.tsx
+
+```typescript
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { FiCopy } from "react-icons/fi";
+import { toast } from "sonner";
+import { generateLatex } from "@/utils/latexGenerator";
+import { ResumeData } from "@/types/resume";
+
+interface LatexExportProps {
+  resumeData: ResumeData;
+}
+
+export const LatexExport = ({ resumeData }: LatexExportProps) => {
+  const [open, setOpen] = useState(false);
+
+  const handleCopyLatex = () => {
+    const latex = generateLatex(resumeData);
+    navigator.clipboard.writeText(latex);
+    toast.success("LaTeX code copied to clipboard!");
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          <FiCopy /> View LaTeX Code
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>LaTeX Resume Code (Overleaf Compatible)</DialogTitle>
+        </DialogHeader>
+
+        <textarea
+          readOnly
+          value={generateLatex(resumeData)}
+          className="w-full h-[400px] p-3 font-mono text-sm border rounded-md bg-muted/20"
+        />
+
+        <div className="flex justify-end mt-4">
+          <Button onClick={handleCopyLatex} className="gap-2">
+            <FiCopy /> Copy to Clipboard
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 ```
 
@@ -6098,6 +6187,7 @@ import { ClassicTemplate } from '@/components/ResumeBuilder/Templates/ClassicTem
 import { ModernTemplate } from '@/components/ResumeBuilder/Templates/ModernTemplate';
 import { ResumeData, TemplateType } from '@/types/resume';
 import { generatePDF } from '@/utils/pdfGenerator';
+import { LatexExport } from "@/components/ui/LatexExport";
 import { FiDownload, FiFileText } from 'react-icons/fi';
 import { toast } from 'sonner';
 
@@ -6158,9 +6248,13 @@ const Index = () => {
                 </p>
               </div>
             </div>
-            <Button onClick={handleDownloadPDF} size="lg" className="gap-2 shadow-medium">
-              <FiDownload /> Download PDF
-            </Button>
+            <div className="flex items-center gap-3">
+  <Button onClick={handleDownloadPDF} size="lg" className="gap-2 shadow-medium">
+    <FiDownload /> Download PDF
+  </Button>
+  <LatexExport resumeData={resumeData} />
+</div>
+
           </div>
         </div>
       </header>
@@ -6372,80 +6466,149 @@ export type TemplateType = 'minimal' | 'classic' | 'modern';
 ```
 
 ---
+File: src\utils\latexGenerator.ts
+
+```typescript
+import { ResumeData } from "@/types/resume";
+
+export const generateLatex = (data: ResumeData): string => {
+  const escape = (str: string) =>
+    str
+      ? str
+          .replace(/&/g, "\\&")
+          .replace(/%/g, "\\%")
+          .replace(/_/g, "\\_")
+          .replace(/#/g, "\\#")
+          .replace(/{/g, "\\{")
+          .replace(/}/g, "\\}")
+      : "";
+
+  return `
+% -------------------------
+% AUTO-GENERATED RESUME (ModernCV compatible)
+% -------------------------
+\\documentclass[11pt,a4paper,sans]{moderncv}
+\\moderncvstyle{classic}
+\\moderncvcolor{blue}
+\\usepackage[scale=0.9]{geometry}
+\\usepackage{enumitem}
+\\setlist[itemize]{noitemsep, topsep=0pt}
+
+% Personal data
+\\name{${escape(data.personal.name || "Your Name")}}{}
+\\email{${escape(data.personal.email || "")}}
+\\phone{${escape(data.personal.phone || "")}}
+\\social[linkedin]{${escape(data.personal.linkedin || "")}}
+\\address{${escape(data.personal.address || "")}}
+
+\\begin{document}
+\\makecvtitle
+
+% Education
+${
+  data.education.length
+    ? `\\section{Education}\n${data.education
+        .map(
+          (e) => `\\cventry{${escape(e.year)}}{${escape(e.degree)}}{${escape(
+            e.college
+          )}}{}{}{${e.cgpa ? `CGPA: ${escape(e.cgpa)}` : ""}}`
+        )
+        .join("\n")}`
+    : ""
+}
+
+% Experience
+${
+  data.experience.length
+    ? `\\section{Experience}\n${data.experience
+        .map(
+          (exp) =>
+            `\\cventry{${escape(exp.duration)}}{${escape(exp.role)}}{${escape(
+              exp.company
+            )}}{}{}{\n\\begin{itemize}\n${exp.points
+              .map((p) => `\\item ${escape(p)}`)
+              .join("\n")}\n\\end{itemize}}`
+        )
+        .join("\n\n")}`
+    : ""
+}
+
+% Projects
+${
+  data.projects.length
+    ? `\\section{Projects}\n${data.projects
+        .map(
+          (p) =>
+            `\\cventry{}{${escape(p.title)}}{}{${escape(
+              p.techStack
+            )}}{}{${escape(p.description)}}`
+        )
+        .join("\n")}`
+    : ""
+}
+
+% Skills
+${
+  data.skills.length
+    ? `\\section{Skills}\n\\cvitem{}{${data.skills
+        .map((s) => escape(s.name))
+        .join(", ")}}`
+    : ""
+}
+
+% Achievements
+${
+  data.achievements.length
+    ? `\\section{Achievements}\n\\begin{itemize}\n${data.achievements
+        .map((a) => `\\item ${escape(a.text)}`)
+        .join("\n")}\n\\end{itemize}`
+    : ""
+}
+
+\\end{document}
+  `.trim();
+};
+
+```
+
+---
 File: src\utils\pdfGenerator.ts
 
 ```typescript
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
-export const generatePDF = async (elementId: string, fileName: string) => {
-  const element = document.getElementById(elementId);
-  if (!element) {
-    console.error('Element not found');
-    return;
-  }
+export const generatePDF = async (p0: string, fileName: string) => {
+  const element = document.getElementById("resume-preview");
+  if (!element) return;
 
-  try {
-    const canvas = await html2canvas(element, {
-      scale: 3, // High quality
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      scrollY: -window.scrollY,
-    });
+  // Increase sharpness using higher scale
+  const scale = window.devicePixelRatio * 3; // dynamically high DPI scaling
 
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
+  const canvas = await html2canvas(element, {
+    scale,
+    useCORS: true,
+    scrollX: 0,
+    scrollY: 0,
+    backgroundColor: "#ffffff", // ensure white background
+    logging: false,
+  });
 
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'px',
-      format: 'a4',
-      compress: true,
-    });
+  const imgData = canvas.toDataURL("image/png", 1.0);
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
 
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+  const pdfHeight = pdf.internal.pageSize.getHeight();
+  const imgWidth = pdfWidth;
+  const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-    const pageHeightPx = (pdfHeight * imgWidth) / pdfWidth; // Canvas height per A4 page
-    let position = 0;
-    let heightLeft = imgHeight;
-
-    while (heightLeft > 0) {
-      const pageCanvas = document.createElement('canvas');
-      pageCanvas.width = imgWidth;
-      pageCanvas.height = Math.min(pageHeightPx, heightLeft);
-      const pageCtx = pageCanvas.getContext('2d')!;
-
-      pageCtx.drawImage(
-        canvas,
-        0,
-        position,
-        imgWidth,
-        pageCanvas.height,
-        0,
-        0,
-        imgWidth,
-        pageCanvas.height
-      );
-
-      const pageData = pageCanvas.toDataURL('image/png', 1.0);
-      const pageHeightScaled = (pdfWidth * pageCanvas.height) / imgWidth;
-
-      if (position === 0) {
-        pdf.addImage(pageData, 'PNG', 0, 0, pdfWidth, pageHeightScaled, undefined, 'FAST');
-      } else {
-        pdf.addPage();
-        pdf.addImage(pageData, 'PNG', 0, 0, pdfWidth, pageHeightScaled, undefined, 'FAST');
-      }
-
-      heightLeft -= pageHeightPx;
-      position += pageHeightPx;
-    }
-
-    pdf.save(fileName);
-  } catch (error) {
-    console.error('Error generating PDF:', error);
-  }
+  const yOffset = (pdfHeight - imgHeight) / 2; // center vertically if smaller
+  pdf.addImage(imgData, "PNG", 0, yOffset > 0 ? yOffset : 0, imgWidth, imgHeight);
+  pdf.save("resume.pdf");
 };
 
 ```
