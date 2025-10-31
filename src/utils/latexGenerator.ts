@@ -13,84 +13,152 @@ export const generateLatex = (data: ResumeData): string => {
       : "";
 
   return `
-% -------------------------
-% AUTO-GENERATED RESUME (ModernCV compatible)
-% -------------------------
-\\documentclass[11pt,a4paper,sans]{moderncv}
-\\moderncvstyle{classic}
-\\moderncvcolor{blue}
-\\usepackage[scale=0.9]{geometry}
-\\usepackage{enumitem}
-\\setlist[itemize]{noitemsep, topsep=0pt}
+\\documentclass[11pt, a4paper]{article}
 
-% Personal data
-\\name{${escape(data.personal.name || "Your Name")}}{}
-\\email{${escape(data.personal.email || "")}}
-\\phone{${escape(data.personal.phone || "")}}
-\\social[linkedin]{${escape(data.personal.linkedin || "")}}
-\\address{${escape(data.personal.address || "")}}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage{lmodern}
+\\usepackage{geometry}
+\\usepackage{enumitem}
+\\usepackage{xcolor}
+\\usepackage{hyperref}
+\\usepackage{parskip}
+
+\\geometry{margin=1in}
+\\definecolor{headercolor}{RGB}{0, 51, 102}
+
+\\renewcommand{\\section}[1]{%
+  \\vspace{1em}
+  {\\large \\color{headercolor} \\textbf{#1}}\\\\[-0.5em]
+  \\hrule
+  \\vspace{0.5em}
+}
+
+\\renewcommand{\\subsection}[1]{%
+  \\vspace{0.5em}
+  {\\normalsize \\textbf{#1}}\\\\[0.2em]
+}
+
+\\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=headercolor,
+}
+
+\\pagestyle{empty}
+\\setlist[itemize]{leftmargin=*, itemsep=0.2em, topsep=0.2em}
+\\setlist[description]{leftmargin=*, itemsep=0.2em, topsep=0.2em}
 
 \\begin{document}
-\\makecvtitle
 
-% Education
+% ===== HEADER =====
+\\begin{center}
+  {\\LARGE \\textbf{${escape(data.personal.name || "Your Name")}}} \\\\[0.5em]
+  {\\large
+    ${data.personal.email ? `\\href{mailto:${escape(data.personal.email)}}{${escape(data.personal.email)}}` : ""}
+    ${data.personal.phone ? ` \\textbullet\\ ${escape(data.personal.phone)}` : ""}
+    ${data.personal.address ? ` \\textbullet\\ ${escape(data.personal.address)}` : ""}
+  }
+  \\vspace{0.3em}
+  \\hrule
+\\end{center}
+
+% ===== SUMMARY =====
+${
+  data.personal.summary
+    ? `
+\\section{Summary}
+${escape(data.personal.summary)}
+`
+    : ""
+}
+
+% ===== EDUCATION =====
 ${
   data.education.length
-    ? `\\section{Education}\n${data.education
-        .map(
-          (e) => `\\cventry{${escape(e.year)}}{${escape(e.degree)}}{${escape(
-            e.college
-          )}}{}{}{${e.cgpa ? `CGPA: ${escape(e.cgpa)}` : ""}}`
-        )
-        .join("\n")}`
+    ? `
+\\section{Education}
+${data.education
+  .map(
+    (e) => `
+\\textbf{${escape(e.college)}} \\hfill \\textit{${escape(e.year || "")}} \\\\
+${escape(e.degree)}${e.cgpa ? ` \\\\ CGPA: ${escape(e.cgpa)}` : ""}
+`
+  )
+  .join("\n")}
+`
     : ""
 }
 
-% Experience
-${
-  data.experience.length
-    ? `\\section{Experience}\n${data.experience
-        .map(
-          (exp) =>
-            `\\cventry{${escape(exp.duration)}}{${escape(exp.role)}}{${escape(
-              exp.company
-            )}}{}{}{\n\\begin{itemize}\n${exp.points
-              .map((p) => `\\item ${escape(p)}`)
-              .join("\n")}\n\\end{itemize}}`
-        )
-        .join("\n\n")}`
-    : ""
-}
-
-% Projects
-${
-  data.projects.length
-    ? `\\section{Projects}\n${data.projects
-        .map(
-          (p) =>
-            `\\cventry{}{${escape(p.title)}}{}{${escape(
-              p.techStack
-            )}}{}{${escape(p.description)}}`
-        )
-        .join("\n")}`
-    : ""
-}
-
-% Skills
+% ===== SKILLS =====
 ${
   data.skills.length
-    ? `\\section{Skills}\n\\cvitem{}{${data.skills
-        .map((s) => escape(s.name))
-        .join(", ")}}`
+    ? `
+\\section{Technical Skills}
+\\begin{itemize}
+  ${data.skills.map((s) => `\\item ${escape(s.name)}`).join("\n  ")}
+\\end{itemize}
+`
     : ""
 }
 
-% Achievements
+% ===== EXPERIENCE =====
+${
+  data.experience.length
+    ? `
+\\section{Professional Experience}
+${data.experience
+  .map(
+    (exp) => `
+\\textbf{${escape(exp.role)}}, ${escape(exp.company)} \\hfill \\textit{${escape(exp.duration)}} \\\\
+\\begin{itemize}
+  ${exp.points.map((p) => `\\item ${escape(p)}`).join("\n  ")}
+\\end{itemize}
+`
+  )
+  .join("\n")}
+`
+    : ""
+}
+
+% ===== PROJECTS =====
+${
+  data.projects.length
+    ? `
+\\section{Projects}
+${data.projects
+  .map(
+    (p) => `
+\\textbf{${escape(p.title)}}${p.techStack ? ` \\hfill \\textit{${escape(p.techStack)}}` : ""} \\\\
+${escape(p.description)}
+`
+  )
+  .join("\n\n")}
+`
+    : ""
+}
+
+% ===== ACHIEVEMENTS =====
 ${
   data.achievements.length
-    ? `\\section{Achievements}\n\\begin{itemize}\n${data.achievements
-        .map((a) => `\\item ${escape(a.text)}`)
-        .join("\n")}\n\\end{itemize}`
+    ? `
+\\section{Achievements}
+\\begin{itemize}
+  ${data.achievements.map((a) => `\\item ${escape(a.text)}`).join("\n  ")}
+\\end{itemize}
+`
+    : ""
+}
+
+% ===== LANGUAGES =====
+${
+  data.languages && data.languages.length
+    ? `
+\\section{Languages}
+\\begin{itemize}
+  ${data.languages.map((l) => `\\item ${escape(l)}`).join("\n  ")}
+\\end{itemize}
+`
     : ""
 }
 
